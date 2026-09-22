@@ -1,0 +1,21 @@
+/**
+ * Classes used by the pages under docs/. They come from the reStructuredText
+ * source (figure classes and rst-class), so the theme has to define them.
+ * VitePress toggles dark mode with the `dark` class on <html>.
+ * -------------------------------------------------------------------------- */
+
+.dark .light-only,
+html:not(.dark) .dark-only {
+  display: none;
+}
+
+.center,
+.align-center {
+  text-align: center;
+}
+
+/* The theme renders images as blocks, so text-align alone does not center them. */
+.align-center img {
+  margin-left: auto;
+  margin-right: auto;
+}
