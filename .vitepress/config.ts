@@ -25,7 +25,7 @@ export default defineConfig({
             collapsed: true,
             items: [
               { text: 'Setup requirements', link: '/docs/installation/requirements' },
-              { text: 'Using the official installer (Linux/MacOS only)', link: '/docs/installation/get-dot-pmmp-dot-io' },
+              { text: 'Using the official installer (Linux/MacOS only)', link: '/docs/installation/get-dot-axolotl-pm-dot-org' },
               { text: 'Using Docker (Linux only)', link: '/docs/installation/docker' },
               { text: 'Installing/updating manually', link: '/docs/installation/installing-manually' }
             ]
