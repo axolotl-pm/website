@@ -28,11 +28,13 @@ Here are a few highlights comparing NetherNet to legacy RakNet:
 
 ## Migrating from old RakNet to NetherNet in Axolotl-PM
 
-Axolotl-PM includes a first-party NetherNet implementation, and it is now the default transport type for newer setups.
+Axolotl-PM includes a first-party NetherNet implementation. By default, both NetherNet and RakNet are enabled so you have RakNet, which has been battle-tested for years, as a fallback if you cannot use NetherNet. RakNet is deprecated and will be removed in a future release.
+
+NetherNet requires the `axolotl-pm/ext-webrtc` PHP extension. If it is missing or its version is unsupported, NetherNet is skipped with a warning and the server keeps running on the remaining transports.
 
 In `pocketmine.yml`, you will now see a new section called `transport`.
 
-Setting `transport.name` to `nethernet` will set up an HTTP server listening on a port defined in `server.properties`.
+Enabling `nethernet` in `transport.name` will set up an HTTP server listening on a port defined in `server.properties`.
 
 By default, Axolotl-PM does not use TLS certificates. Setting up TLS is encouraged due to how clients trust servers via HTTP/HTTPS:
 
@@ -51,7 +53,7 @@ You can find all transport and NetherNet settings under the `transport` section 
 transport:
   #Network transport(s) used for player connections. Accepts a comma-separated list (e.g. raknet,nethernet).
   #Built-in options: raknet, nethernet. Plugins may register additional transports.
-  name: nethernet
+  name: nethernet,raknet
   #Settings for the NetherNet (WebRTC) transport.
   nethernet:
     #Path to the persistent identity key, relative to the data directory.
@@ -72,6 +74,9 @@ transport:
     #UDP port range for connections.
     #Parsed as [min, max], e.g. [19132, 19140]. Leave empty to use any available port.
     port-range:
+
+    #Maximum size in bytes of IP packets sent to clients. Not negotiated, so only raise it if every client's network path allows it.
+    mtu: 1200
 
     #IP addresses advertised to clients for peer connections instead of locally gathered interface addresses.
     #Useful when behind a 1:1 NAT (specify the public IP) or when the server has unreachable internal interfaces.
@@ -121,7 +126,7 @@ transport:
         enabled: false
         #List of trusted reverse proxy IP addresses or CIDR blocks.
         #Forwarded headers from unlisted addresses are ignored to prevent IP address spoofing.
-        #Leave empty to trust headers from any address (only safe if public access to the signaling port is restricted).
+        #At least one entry is required when enabled.
         trusted-ips:
         #Example:
         #- 127.0.0.1
@@ -132,8 +137,9 @@ transport:
 
 ### `transport.name`
 Controls which network transports are active. Accepts a comma-separated list of transport names:
-* `nethernet`: The default modern WebRTC transport.
-* Plugins can also register additional transports, allowing you to run multiple transports simultaneously (e.g. `nethernet,custom_transport`).
+* `nethernet`: The modern WebRTC transport.
+* `raknet`: The legacy transport. Deprecated and will be removed in a future release.
+* Plugins can also register additional transports, allowing you to run multiple transports simultaneously (e.g. `nethernet,raknet,custom_transport`).
 
 ### `transport.nethernet.key-file`
 The path to the identity key file, relative to your server data folder (defaults to `nethernet.key`). It is generated on first start if it doesn't exist.
@@ -169,6 +175,9 @@ Unless you either:
 With `ice-udp-mux` off, one port is used per connected player, so a `port-range` also caps how many players can be online at once. A range of `[19132, 19140]` allows 9. Once it runs out, further joins fail with "Failed to gather local ICE candidates".
 :::
 
+### `transport.nethernet.mtu`
+The maximum size in bytes of IP packets sent to clients (default `1200`, allowed range `620`-`4144`). Unlike RakNet, this is not negotiated: every client gets the same value. Only raise it if every client's network path allows it. This replaces `network.max-mtu-size`, which only applies to RakNet.
+
 ### `transport.nethernet.advertise-addresses`
 The IP addresses announced to clients for WebRTC connections instead of locally detected network adapter IPs.
 * **When you need this:** If your server is hosted behind a 1:1 NAT (like AWS EC2, Google Cloud, Oracle Cloud, or behind a home router), your server only sees its internal private IP (e.g. `10.0.0.x` or `192.168.1.x`). Set your public IP here so clients on the internet know where to send WebRTC traffic.
@@ -194,7 +203,7 @@ Settings for the built-in HTTP signaling server:
   * When TLS is configured, HTTP requests are automatically redirected to HTTPS.
 * **`reverse-proxy`**:
   * `enabled`: Enable this if your signaling server sits behind a reverse proxy (Nginx, Caddy, Cloudflare, etc.).
-  * `trusted-ips`: List of trusted proxy IP addresses or CIDR blocks (e.g. `127.0.0.1`, `192.168.0.0/16`). Forwarded headers (`X-Forwarded-For`, etc.) from unlisted IPs are rejected to prevent players from spoofing their IP.
+  * `trusted-ips`: List of trusted proxy IP addresses or CIDR blocks (e.g. `127.0.0.1`, `192.168.0.0/16`). At least one entry is required when `enabled` is `true`. Forwarded headers (`X-Forwarded-For`, etc.) from unlisted IPs are rejected to prevent players from spoofing their IP.
 
 ## Advanced setup
 
@@ -331,23 +340,27 @@ Using STUN and TURN servers is discouraged since the client always does full tri
 
 ### Setup 5: Running multiple transports (e.g. plugin-registered transports)
 
-Axolotl-PM supports running multiple network transports simultaneously. In addition to the built-in NetherNet transport, plugins can register their own custom transports (such as custom protocol bridges or alternative network layers).
+Axolotl-PM supports running multiple network transports simultaneously. In addition to the built-in NetherNet and RakNet transports, plugins can register their own custom transports (such as custom protocol bridges or alternative network layers).
 
 You can enable multiple transports by specifying a comma-separated list under `transport.name`:
 
 ```yaml
 transport:
   # Accepts a comma-separated list of transports (built-in and plugin transports)
-  name: nethernet,custom_transport
+  name: nethernet,raknet,custom_transport
 ```
 
 ::: tip Port management with multiple transports
 Each transport manages its own sockets and listeners independently. Make sure any additional transports registered by plugins do not try to bind to the same ports used by NetherNet (such as the TCP signaling port or the UDP ports in `port-range`).
 :::
 
+::: info Deprecated RakNet settings
+`network.upnp-forwarding` only forwards the RakNet port and `network.enable-encryption` only concerns RakNet; both are deprecated and will be removed together with RakNet. NetherNet uses STUN/TURN servers and a reverse proxy or tunnel instead, and DTLS always encrypts its traffic.
+:::
+
 ## Ports you need to open
 
-Unlike legacy RakNet, which only used UDP `19132`, NetherNet uses both TCP (for HTTP signaling) and UDP (for WebRTC game data):
+Unlike legacy RakNet, which only used UDP `19132` (still needed if `raknet` is enabled), NetherNet uses both TCP (for HTTP signaling) and UDP (for WebRTC game data):
 
 | Protocol | Port(s) | Traffic Type | Notes |
 | :--- | :--- | :--- | :--- |
