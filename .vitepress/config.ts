@@ -34,6 +34,10 @@ export default defineConfig({
       message: footerMessage
     },
 
+    search: {
+      provider: 'local'
+    },
+
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Documentation', link: '/docs' }
