@@ -124,13 +124,15 @@ transport:
       #Allows resolving the client's real IP from forwarded headers for features like TURN relays.
       reverse-proxy:
         enabled: false
+        #Header the proxy sets the client's IP in (e.g. X-Forwarded-For, X-Real-IP, CF-Connecting-IP).
+        header: X-Forwarded-For
         #List of trusted reverse proxy IP addresses or CIDR blocks.
         #Forwarded headers from unlisted addresses are ignored to prevent IP address spoofing.
         #At least one entry is required when enabled.
         trusted-ips:
         #Example:
         #- 127.0.0.1
-        #- 192.168.0.0/16
+        #- 10.0.0.2
 ```
 
 ### Explaining the settings
@@ -202,7 +204,12 @@ Settings for the built-in HTTP signaling server:
   * When TLS is configured, HTTP requests are automatically redirected to HTTPS.
 * **`reverse-proxy`**:
   * `enabled`: Enable this if your signaling server sits behind a reverse proxy (Nginx, Caddy, Cloudflare, etc.).
-  * `trusted-ips`: List of trusted proxy IP addresses or CIDR blocks (e.g. `127.0.0.1`, `192.168.0.0/16`). At least one entry is required when `enabled` is `true`. Forwarded headers (`X-Forwarded-For`, etc.) from unlisted IPs are rejected to prevent players from spoofing their IP.
+  * `header`: The header your proxy writes the player's IP to (defaults to `X-Forwarded-For`). Common values are `X-Forwarded-For`, `X-Real-IP` and `CF-Connecting-IP`. Only this header is read, every other one is ignored. The standard `Forwarded` header is not supported.
+  * `trusted-ips`: List of trusted proxy IP addresses or CIDR blocks (e.g. `127.0.0.1`, `10.0.0.2`). At least one entry is required when `enabled` is `true`. The header is ignored when the request comes from an unlisted IP, to prevent players from spoofing their IP.
+
+::: warning List only your proxies in `trusted-ips`
+Joins from a trusted IP are refused unless they carry the configured header, so players can't connect directly from a listed address.
+:::
 
 ## Advanced setup
 
@@ -227,6 +234,7 @@ transport:
       port: 8080 # Internal TCP port for reverse proxy
       reverse-proxy:
         enabled: true
+        header: X-Forwarded-For
         trusted-ips:
           - 127.0.0.1
 ```
@@ -388,6 +396,10 @@ To avoid opening that whole range:
 
 ### All player IPs show as `127.0.0.1`
 * If you are using a reverse proxy, make sure `reverse-proxy.enabled` is `true` and your proxy's IP (e.g. `127.0.0.1`) is in `reverse-proxy.trusted-ips`.
+
+### Players can't join and the console shows "Refused an offer from trusted proxy"
+* The request came from an IP in `reverse-proxy.trusted-ips` without the header named in `reverse-proxy.header`. Make sure your proxy sets that exact header.
+* If players connect directly from that address instead of through the proxy, remove it from `trusted-ips`.
 
 ### Connection takes a long time before joining, or fails after about 15 seconds
 * If you have unreachable STUN or TURN servers in `ice-servers`, candidate gathering stalls and the join fails once the gathering timeout is reached. Try temporarily removing them to check if connections improve.
