@@ -1,11 +1,13 @@
 ---
 # https://vitepress.dev/reference/default-theme-home-page
 layout: home
+title: "Axolotl-PM: Minecraft Bedrock server software (PMMP fork)"
+titleTemplate: false
 
 hero:
   name: "Axolotl-PM"
-  text: "Official website for Axolotl-PM"
-  tagline: Axolotl-PM is a Minecraft Bedrock Edition server software written in PHP, C and C++. Axolotl-PM forked PMMP and now continuing what PMMP did.
+  text: "Run your own Minecraft: Bedrock server"
+  tagline: A maintained fork of PocketMine-MP, written in PHP, C and C++, with a customisable plugin API and new Minecraft versions usually supported within days.
   actions:
     - theme: brand
       text: Getting Started

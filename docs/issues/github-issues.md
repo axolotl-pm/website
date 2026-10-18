@@ -15,7 +15,7 @@ To avoid wasting your time or ours, try the following before submitting a report
 
 - Update to the latest Axolotl-PM version - the bug might have already been fixed
 - Try and reproduce the bug on a clean server **without plugins**, to make sure it's not a plugin causing the problem
-- Ask for help on our [community Discord](https://discord.gg/vrPugybpJF)
+- Ask for help on our [community Discord](https://discord.axolotl-pm.org/)
 
 ## Issue still not resolved?
 

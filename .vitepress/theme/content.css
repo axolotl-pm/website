@@ -19,3 +19,55 @@ html:not(.dark) .dark-only {
   margin-left: auto;
   margin-right: auto;
 }
+
+/* Row of status badges (docs/index.md): the theme makes images blocks, so lay them out in one wrapping line. */
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 8px;
+  margin: 12px 0;
+}
+
+.badges br {
+  display: none;
+}
+
+.badges img {
+  display: block;
+  height: 20px;
+  margin: 0;
+}
+
+/* Home page hero: the name is a small label above the headline; the logo has its own size. */
+.VPHero .name {
+  margin-bottom: 8px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  letter-spacing: 0.02em;
+}
+
+.VPHero .text {
+  letter-spacing: -0.02em;
+}
+
+.VPHero .tagline {
+  max-width: 34em;
+}
+
+.VPHero .hero-logo {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 240px;
+  margin: 0 auto;
+}
+
+@media (min-width: 640px) {
+  .VPHero .hero-logo { max-width: 320px; }
+}
+
+@media (min-width: 960px) {
+  .VPHero .hero-logo { max-width: 400px; }
+}

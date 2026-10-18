@@ -36,7 +36,7 @@ Submitted translations require approval from a proofreader to be released in Axo
 Some languages may already have been fully translated, but lack proofreaders.
 
 If you're fluent in English and another language, and you're interested in becoming a proofreader,
-join our [Discord](https://discord.gg/vrPugybpJF) and ask us being proofreader.
+join our [Discord](https://discord.axolotl-pm.org/) and ask us being proofreader.
 :::
 
 ## Code contributions

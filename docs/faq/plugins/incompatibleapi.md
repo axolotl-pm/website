@@ -23,7 +23,7 @@ You can learn more about how API versions work [here](/docs/developers/plugin-do
 
 Check for an updated version of the plugin, or ask the plugin developer to update it.
 
-If you're feeling adventurous, you could try updating the code yourself to work on the version of Axolotl-PM you're using. Check out the [plugin development docs](/docs/developers/plugin-docs-index). Also, consider joining our [Discord](https://discord.gg/vrPugybpJF) server so that you can ask other developers for help.
+If you're feeling adventurous, you could try updating the code yourself to work on the version of Axolotl-PM you're using. Check out the [plugin development docs](/docs/developers/plugin-docs-index). Also, consider joining our [Discord](https://discord.axolotl-pm.org/) server so that you can ask other developers for help.
 
 ::: warning Warning
 Simply bumping the plugin's declared API version is often not enough to update a plugin. The plugin might still crash or not work as expected.

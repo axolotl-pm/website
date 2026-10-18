@@ -30,6 +30,7 @@ export default defineConfig({
   },
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
+    logo: { src: '/img/axolotl-logo.svg', alt: '' },
     footer: {
       message: footerMessage
     },
