@@ -380,6 +380,20 @@ To avoid opening that whole range:
 * **Option B:** Set `ice-udp-mux: true` and `port-range: [19132, 19132]` so all WebRTC traffic shares a single UDP port (`19132/udp`). Note that this cannot be used with TURN servers.
 :::
 
+## Common pitfalls
+
+Switching from RakNet to WebRTC (NetherNet) changes how connections are established and routed. See [NetherNet common issues](/docs/faq/connecting/nethernet-common-issues) for detailed troubleshooting steps.
+
+* Cloud VMs (AWS EC2, Google Cloud, Oracle Cloud), home routers, and Docker bridge networks bind to private internal IPs (`10.x.x.x`, `172.17.x.x`, or `192.168.x.x`). Without listing your public IP in `advertise-addresses`, the server announces its internal IP in the SDP answer, and players over the internet cannot reach the WebRTC UDP port.
+* `advertise-addresses` announces your public IP using the same local UDP port bound by Axolotl-PM. Forwarding an external port to a different internal port (for example, external `25000/udp` to internal `19132/udp`) fails because clients are told to connect to port `19132`. Forward UDP ports 1:1 without port translation.
+* NetherNet requires both TCP (for the HTTP `/v1/join` signaling handshake) and UDP (for the WebRTC ICE/DTLS/SCTP game traffic). If only TCP is open in the firewall, the server appears online and responds to signaling, but players get stuck and time out before joining.
+* When `port-range` is empty, the OS picks a random ephemeral UDP port for every player session (or a random single port on each restart when `ice-udp-mux: true`). Set an explicit `port-range` (or `[19132, 19132]` with `ice-udp-mux: true`) when running behind a firewall or NAT.
+* When `ice-udp-mux` is `false`, each active player session consumes one UDP port from `port-range`. Once all ports in the range are in use, new connections fail with `No local candidates to answer with`.
+* If the server only binds to an IPv4 interface while `advertise-addresses` only lists an IPv6 address (or vice versa), candidate rewriting drops all non-matching host candidates and has no gathered UDP host port to synthesize a `srflx` candidate, failing with `No local candidates to answer with`.
+* `libdatachannel` does not support UDP socket multiplexing when relaying through TURN servers. Enabling both `ice-udp-mux: true` and a TURN server in `ice-servers` prevents NetherNet from starting.
+* HTTP signaling uses bundled ICE, so the server waits for all configured `ice-servers` to respond or time out before sending the SDP answer. An unreachable STUN or TURN server stalls every join attempt for up to 15 seconds (`Timed out gathering ICE candidates`).
+* Do not enable Cloudflare proxy (orange cloud) on your server domain. Cloudflare does not proxy WebRTC UDP traffic, does not support port `19132`, and its caching and proxy behavior interfere with NetherNet signaling. Keep the DNS record set to DNS Only (grey cloud) and run a reverse proxy like Nginx or Caddy directly on your server.
+
 ## Troubleshooting
 
 ### Players get an "Trust this server" dialog
