@@ -116,6 +116,7 @@ export default defineConfig({
             link: '/docs/faq/connecting',
             collapsed: true,
             items: [
+              { text: 'NetherNet common issues', link: '/docs/faq/connecting/nethernet-common-issues' },
               { text: 'Can’t connect to the server after updating Minecraft', link: '/docs/faq/connecting/cantconnect' },
               { text: 'What does “Opening server on 0.0.0.0:19132” mean?', link: '/docs/faq/connecting/defaultrouteip' },
               { text: '“Login timeout” when attempting to connect', link: '/docs/faq/connecting/logintimeout' },
