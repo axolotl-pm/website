@@ -392,7 +392,7 @@ Switching from RakNet to WebRTC (NetherNet) changes how connections are establis
 * If the server only binds to an IPv4 interface while `advertise-addresses` only lists an IPv6 address (or vice versa), candidate rewriting drops all non-matching host candidates and has no gathered UDP host port to synthesize a `srflx` candidate, failing with `No local candidates to answer with`.
 * `libdatachannel` does not support UDP socket multiplexing when relaying through TURN servers. Enabling both `ice-udp-mux: true` and a TURN server in `ice-servers` prevents NetherNet from starting.
 * HTTP signaling uses bundled ICE, so the server waits for all configured `ice-servers` to respond or time out before sending the SDP answer. An unreachable STUN or TURN server stalls every join attempt for up to 15 seconds (`Timed out gathering ICE candidates`).
-* Do not enable Cloudflare proxy (orange cloud) on your server domain. Cloudflare does not proxy WebRTC UDP traffic, does not support port `19132`, and its caching and proxy behavior interfere with NetherNet signaling. Keep the DNS record set to DNS Only (grey cloud) and run a reverse proxy like Nginx or Caddy directly on your server.
+* Cloudflare's proxy (orange cloud) never carries the WebRTC UDP traffic. See [NetherNet common issues](/docs/faq/connecting/nethernet-common-issues#_2-using-cloudflare-proxy-orange-cloud-on-the-server-domain).
 
 ## Troubleshooting
 

@@ -66,7 +66,7 @@ For HTTP signaling, NetherNet uses bundled ICE (`CandidateMode::BUNDLED`), where
 1. When `ice-udp-mux` is `false`, every active player connection and ongoing negotiation binds its own dedicated UDP socket from `port-range`. If `port-range: [19132, 19135]` is configured, only 4 UDP ports are available. When a 5th player tries to join, `libdatachannel` cannot bind a UDP port in that range and gathers 0 candidates.
 2. All ports in `port-range` are already occupied by another process, such as when `port-range: [19132, 19132]` is set while RakNet or Dedicated Query is already bound to UDP port `19132` on the same IP.
 3. To synthesize a server-reflexive (`srflx`) candidate for an IP in `advertise-addresses`, NetherNet needs a local UDP `host` candidate of the same address family (`IPv4` vs `IPv6`) to know which UDP port to advertise. If your server only has IPv4 interfaces (or `server-ip` is set to an IPv4 address), but `advertise-addresses` only contains an IPv6 address (or vice versa), all IPv4 host candidates are dropped because they are not in `advertise-addresses`, and the IPv6 address cannot be advertised because no IPv6 UDP port was gathered.
-4. NetherNet passes `server-ip` (when not `0.0.0.0`) as `bindAddress` to `ext-webrtc`. If `server-ip` in `server.properties` is set to an IP that `libdatachannel` cannot use to gather candidates, gathering produces nothing.
+4. NetherNet passes `server-ip` (when not `0.0.0.0`) as the bind address to `ext-webrtc`. `libjuice` then gathers only that one address, instead of every interface. If `server-ip` is not an address of this machine, the UDP socket cannot be created and the connection fails.
 
 ### How to fix it
 * Enable `ice-udp-mux: true` with `port-range: [19132, 19132]` so all players share a single UDP socket, or make `port-range` large enough to cover your maximum player count plus simultaneous join negotiations.
@@ -86,9 +86,9 @@ Peer sent a candidate that is malformed or does not name an IP address
 ```
 
 ### Why it happens
-`IceCandidate::isAcceptableFromPeer()` requires every peer ICE candidate to contain a literal IPv4 or IPv6 address (`FILTER_VALIDATE_IP`). Candidates containing hostnames or `.local` mDNS addresses are stripped so `libdatachannel` never runs blocking or untrusted DNS lookups on behalf of a connecting peer.
+`IceCandidate::isAcceptableFromPeer()` requires every peer ICE candidate to contain a literal IPv4 or IPv6 address (`FILTER_VALIDATE_IP`). Candidates containing hostnames or `.local` mDNS addresses are stripped before they reach `libdatachannel`.
 
-For HTTP signaling (`TransportNegotiator::addSignalingPeerCandidate()`), if a client behind NAT only sends its private LAN IP in its SDP offer, NetherNet inspects the source IP of the HTTP signaling request and injects a synthetic `srflx` remote candidate (`foundation: signaling`) using the client's UDP host port.
+For HTTP signaling (`TransportNegotiator::addSignalingPeerCandidate()`), NetherNet also injects a synthetic `srflx` remote candidate (`foundation: signaling`) from the source IP of the HTTP request, using the port of the client's first UDP host candidate, unless the offer already contains that IP.
 
 ### How to fix it
 * Because NetherNet uses the HTTP client's IP as a fallback ICE candidate for players behind NAT, having all HTTP requests arrive from `127.0.0.1` (your reverse proxy) without `reverse-proxy.enabled: true` causes NetherNet to try `127.0.0.1` as the client's candidate instead of the player's public IP. Configure `transport.nethernet.builtin-signaling.reverse-proxy` whenever HTTP signaling sits behind a proxy.
@@ -104,8 +104,7 @@ For HTTP signaling (`TransportNegotiator::addSignalingPeerCandidate()`), if a cl
 * Even on LAN or direct connections, players experience a long pause before connecting.
 
 ### Why it happens
-1. Over HTTP signaling, NetherNet waits until `PeerConnection::getGatheringState() === GatheringState::COMPLETE` before building and returning the bundled SDP answer (`DEFAULT_GATHERING_TIMEOUT = 15.0` seconds). If you configure a STUN or TURN server in `transport.nethernet.ice-servers` that drops UDP packets or is blocked by an outbound firewall, `libdatachannel` waits for STUN binding requests to time out before marking gathering as complete. If it exceeds 15 seconds, the negotiation fails with `Timed out gathering ICE candidates`.
-2. Minecraft Bedrock clients wait for their own candidate gathering to complete before finishing negotiation. Adding unnecessary STUN or TURN servers delays connection establishment.
+1. Over HTTP signaling, NetherNet waits until `PeerConnection::getGatheringState() === GatheringState::COMPLETE` before building and returning the bundled SDP answer (`DEFAULT_GATHERING_TIMEOUT = 15.0` seconds). If you configure a STUN or TURN server in `transport.nethernet.ice-servers` that drops UDP packets or is blocked by an outbound firewall, gathering may not complete until the STUN requests time out. If that exceeds 15 seconds, the negotiation fails with `Timed out gathering ICE candidates`.
 
 ### How to fix it
 * If your server has a dedicated public IP or a port-forwarded 1:1 NAT, do not configure STUN or TURN servers in `ice-servers`. Use `advertise-addresses` instead so candidate gathering completes immediately using local sockets.
@@ -156,17 +155,19 @@ or `ext-webrtc` throws `WebRtcException: TURN servers cannot be used with ICE UD
 A client or reverse proxy connected using `https://` to Axolotl-PM's built-in signaling server while `transport.nethernet.builtin-signaling.tls` had no `certificate` and `key` configured. Configure `tls.certificate` and `tls.key` in `pocketmine.yml`, or if you terminate TLS at a reverse proxy (Nginx or Caddy), configure the proxy to forward to Axolotl-PM over plain `http://127.0.0.1:<port>`.
 
 ### 2. Using Cloudflare proxy ("orange cloud") on the server domain
-Do not enable Cloudflare proxy (orange cloud) on your server domain. Cloudflare's HTTP proxy does not support WebRTC UDP traffic, only proxies limited HTTP ports (not `19132/tcp`), hides your server's IP behind Cloudflare's anycast IP, and can break signaling responses through caching or request inspection. Always set your Cloudflare DNS record to DNS Only (grey cloud) and terminate TLS on your own server with Nginx, Caddy, or built-in TLS.
+Cloudflare's proxy only carries HTTP(S), never the WebRTC UDP traffic, which must reach your server directly. Proxying does not hide your server's IP either, since the SDP answer announces its addresses.
+
+If you proxy only the signaling, use a port Cloudflare supports (such as `443`) for `builtin-signaling.port`, set `reverse-proxy.header` to `CF-Connecting-IP`, and list Cloudflare's IP ranges in `trusted-ips`. Otherwise, keep the DNS record on DNS Only (grey cloud).
 
 ### 3. Players see a "Trust this server" (TOFU) warning every time or after server migration
 When connecting over plain HTTP, Minecraft Bedrock uses TOFU (Trust On First Use) and pins the public key derived from `nethernet.key` (`transport.nethernet.key-file`). If `nethernet.key` is deleted, regenerated, or not copied when migrating hosts, returning players are prompted again because the server's cryptographic identity changed.
 * Back up and preserve `nethernet.key` in your server data directory.
 * To avoid the TOFU prompt for all players, serve HTTP signaling over HTTPS with a certificate signed by a trusted certificate authority (such as Let's Encrypt).
 
-### 4. "no client address in the proxy headers" / all players share `127.0.0.1`
+### 4. "No client address in the ... header" / all players share `127.0.0.1`
 When `reverse-proxy.enabled: true` is set, NetherNet checks if the TCP connection comes from `reverse-proxy.trusted-ips`. If it does, it reads the header configured in `reverse-proxy.header` (`X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`). For `X-Forwarded-For`, it parses the comma-separated list from right to left, skipping any IP in `trusted-ips` to find the first untrusted client IP.
 * List your reverse proxy in `trusted-ips` (such as `127.0.0.1` or your Docker proxy subnet).
-* Configure your reverse proxy to set the header named in `reverse-proxy.header` (the RFC 7239 `Forwarded` header is not supported; use `X-Forwarded-For` or `X-Real-IP`).
+* Configure your reverse proxy to set the header named in `reverse-proxy.header`, or joins are refused with `No client address in the <header> header`. The RFC 7239 `Forwarded` header is not supported.
 * If a player or attacker triggers rate limiting (`Blocking <ip>: too many connections being negotiated at once`, default 16 concurrent negotiations per IP) while `reverse-proxy` is not enabled behind a proxy, `127.0.0.1` is blocked for 300 seconds, locking out all players through that proxy.
 
 ## Identity and clock skew issues ("Identity rejected")
