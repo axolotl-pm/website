@@ -154,17 +154,12 @@ or `ext-webrtc` throws `WebRtcException: TURN servers cannot be used with ICE UD
 ### 1. "Client initiated a TLS handshake on a plaintext endpoint"
 A client or reverse proxy connected using `https://` to Axolotl-PM's built-in signaling server while `transport.nethernet.builtin-signaling.tls` had no `certificate` and `key` configured. Configure `tls.certificate` and `tls.key` in `pocketmine.yml`, or if you terminate TLS at a reverse proxy (Nginx or Caddy), configure the proxy to forward to Axolotl-PM over plain `http://127.0.0.1:<port>`.
 
-### 2. Using Cloudflare proxy ("orange cloud") on the server domain
-Cloudflare's proxy only carries HTTP(S), never the WebRTC UDP traffic, which must reach your server directly. Proxying does not hide your server's IP either, since the SDP answer announces its addresses.
-
-If you proxy only the signaling, use a port Cloudflare supports (such as `443`) for `builtin-signaling.port`, set `reverse-proxy.header` to `CF-Connecting-IP`, and list Cloudflare's IP ranges in `trusted-ips`. Otherwise, keep the DNS record on DNS Only (grey cloud).
-
-### 3. Players see a "Trust this server" (TOFU) warning every time or after server migration
+### 2. Players see a "Trust this server" (TOFU) warning every time or after server migration
 When connecting over plain HTTP, Minecraft Bedrock uses TOFU (Trust On First Use) and pins the public key derived from `nethernet.key` (`transport.nethernet.key-file`). If `nethernet.key` is deleted, regenerated, or not copied when migrating hosts, returning players are prompted again because the server's cryptographic identity changed.
 * Back up and preserve `nethernet.key` in your server data directory.
 * To avoid the TOFU prompt for all players, serve HTTP signaling over HTTPS with a certificate signed by a trusted certificate authority (such as Let's Encrypt).
 
-### 4. "No client address in the ... header" / all players share `127.0.0.1`
+### 3. "No client address in the ... header" / all players share `127.0.0.1`
 When `reverse-proxy.enabled: true` is set, NetherNet checks if the TCP connection comes from `reverse-proxy.trusted-ips`. If it does, it reads the header configured in `reverse-proxy.header` (`X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`). For `X-Forwarded-For`, it parses the comma-separated list from right to left, skipping any IP in `trusted-ips` to find the first untrusted client IP.
 * List your reverse proxy in `trusted-ips` (such as `127.0.0.1` or your Docker proxy subnet).
 * Configure your reverse proxy to set the header named in `reverse-proxy.header`, or joins are refused with `No client address in the <header> header`. The RFC 7239 `Forwarded` header is not supported.
